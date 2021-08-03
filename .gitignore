@@ -1,3 +1,9 @@
-data/
+# dir
 .vscode/
 wandb/
+*/__pycache__/
+
+# file
+*.csv
+*.pth
+*.pt
