@@ -1,6 +1,5 @@
 # dir
 .vscode/
-wandb/
 */__pycache__/
 
 # file
