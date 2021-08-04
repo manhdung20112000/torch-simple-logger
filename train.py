@@ -102,10 +102,12 @@ if __name__ == '__main__':
     for epoch in pb:
         train_loss = train(model, epoch, trainloader, optimizer, loss_function)
         train_losses.append(train_loss)
+        print(epoch, train_loss)
 
         test_loss, test_acc = test(model, epoch, testloader)
         test_losses.append(test_loss)
         test_accuracy.append(test_acc)
+        print(epoch, test_loss, test_acc)
 
 
 
