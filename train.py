@@ -1,4 +1,3 @@
-import wandb
 from models.model import Net
 from utils.utils import get_dataloader, get_dataset, get_transform
 

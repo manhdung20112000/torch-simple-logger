@@ -3,9 +3,6 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 
-import wandb
-
-
 def get_transform():
     transform = transforms.Compose(
         [transforms.ToTensor(),
