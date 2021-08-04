@@ -105,6 +105,10 @@ class SummaryWriter():
                 
         """
         if self.use_wandb:
-            self.wandb.log(tag_scalar_dict, step=global_step)
+            wb_scalar_dict = {}
+            for key, value in tag_scalar_dict.items():
+                wb_scalar_dict[str(main_tag+'/'+key)] = value
+                
+            self.wandb.log(wb_scalar_dict, step=global_step)
         else:
             self.tensorboard.add_scalars(main_tag, tag_scalar_dict, global_step, walltime)
