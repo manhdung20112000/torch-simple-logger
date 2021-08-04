@@ -1,5 +1,5 @@
 import wandb
-from utils.model import Net
+from models.model import Net
 from utils.utils import get_dataloader, get_dataset, get_transform
 
 import torch
@@ -10,6 +10,10 @@ import torch.nn as nn
 import torch.optim as optim
 
 from config import *
+
+# for logging
+from utils.logger import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 
 def train(model, epoch, trainloader, optimizer, loss_function):
     model.train()
@@ -28,14 +32,14 @@ def train(model, epoch, trainloader, optimizer, loss_function):
         running_loss += loss.item()
 
     total_loss = running_loss/len(trainloader.dataset)
-    wandb.log({'epoch':epoch, 'train loss':total_loss})
+    logger.add_scalar('train/avg_loss',total_loss, global_step=epoch)
     
     # wandb save as artifact
-    torch.onnx.export(model, input, RUN_NAME+'.onnx')
-    wandb.save(RUN_NAME+'.onnx')
-    trained_weight = wandb.Artifact("CNN", type="model", description="test")
-    trained_weight.add_file(RUN_NAME+'.onnx')
-    run.log_artifact(trained_weight)
+    # torch.onnx.export(model, input, RUN_NAME+'.onnx')
+    # wandb.save(RUN_NAME+'.onnx')
+    # trained_weight = wandb.Artifact("CNN", type="model", description="test")
+    # trained_weight.add_file(RUN_NAME+'.onnx')
+    # run.log_artifact(trained_weight)
     # pytorch save
     # torch.save(model.state_dict(), SAVE_PATH+'.pth')
     return 
@@ -53,7 +57,11 @@ def test(model, epoch, testloader):
     
     test_loss /= len(testloader)
     test_accuracy = 100. * correct / len(testloader.dataset)
-    wandb.log({'epoch':epoch, 'test loss':test_loss, 'test accuracy': test_accuracy})
+    
+    scalars = {'loss': test_loss,
+        'accuracy': test_accuracy,}
+
+    logger.add_scalars(main_tag='eval', tag_scalar_dict=scalars, global_step=epoch)
     return test_loss, test_accuracy
 
 if __name__ == '__main__':
@@ -62,14 +70,15 @@ if __name__ == '__main__':
         learning_rate = LEARNING_RATE,
         momentum      = MOMENTUM,
         architecture  = ARCHITECTURE,
-        dataset       = DATASET
+        dataset       = DATASET,
     )
 
-    run = wandb.init(project="mlops-wandb-demo", tags=["dropout", "cnn"], config=config)
+    logger = SummaryWriter(log_dir="mlops-wandb-demo",config=config)
+    # run = wandb.init(project="mlops-wandb-demo", tags=["dropout", "cnn"], config=config)
     # run.use_artifact('mnist:latest')
-    artifact = wandb.Artifact('mnist', type='dataset')
-    artifact.add_dir(DATA_PATH)
-    run.log_artifact(artifact)
+    # artifact = wandb.Artifact('mnist', type='dataset')
+    # artifact.add_dir(DATA_PATH)
+    # run.log_artifact(artifact)
     
     # get dataloader
     train_set, test_set = get_dataset(transform=get_transform())
@@ -88,8 +97,8 @@ if __name__ == '__main__':
     train_losses, test_losses, test_accuracy = [], [], []
 
     # wandb watch model
-    wandb.watch(models=model, criterion=loss_function, log='all', log_freq=10)
-
+    logger.watch_model(model=model, criterion=loss_function, log='all', log_freq=10)
+    
     for epoch in pb:
         train_loss = train(model, epoch, trainloader, optimizer, loss_function)
         train_losses.append(train_loss)

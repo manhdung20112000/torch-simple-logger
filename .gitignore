@@ -1,8 +1,13 @@
 # dir
 .vscode/
 */__pycache__/
+*/dataset
+# run experiment
+/wandb 
 
 # file
+*.pyc
 *.csv
 *.pth
 *.pt
+*.gz
