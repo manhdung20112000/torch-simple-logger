@@ -1,6 +1,6 @@
 # Init logging object
 from utils.logger.wandb.wandb_logger import WandbLogger
-from utils.logger.wandb.general import colorstr
+from utils.logger.general import colorstr
 import warnings
 
 import torch
@@ -77,7 +77,7 @@ class Logger():
         if wandb and 'wandb' in self.include:
             wandb_artifact_resume = isinstance(self.opt.weight, str) and self.opt.weight.startswith(WANDB_ARTIFACT_PREFIX)
             run_id = torch.load(self.weights.get('wandb_id')) if not wandb_artifact_resume else None
-            self.wandb = WandbLogger(self.opt. run_id)
+            self.wandb = WandbLogger(self.opt, run_id)
 
         else:
             self.wandb=None
