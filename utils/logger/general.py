@@ -1,3 +1,4 @@
+import argparse
 import glob
 import logging
 import os
@@ -11,6 +12,41 @@ import pkg_resources as pkg
 import yaml
 from multiprocessing.pool import ThreadPool
 
+class Args():
+    def __init__(self):
+        self.parser, self.opt = self.__parse_opt()
+
+    def get_opt(self):
+        return self.opt
+    
+    def get_parser(self):
+        return self.parser
+
+    def __parse_opt(self):
+        """
+        Setup arguments for this run, including:
+            - weights (str): initial weights local path or W&B path
+            - data (str): path to .yaml data file
+            - epochs (int): total epochs
+            - batch_size (int): total batch size for all GPUs
+            - project (str): W&B project name, save to project/name
+            - entity (str): W&B entity
+            - upload_dataset (boolean): upload dataset as W&B  artifact
+            - artifact_alias (str): version of dataset artifact to be used
+        """
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--weights', type=str, default='', help='initial weights path')
+        parser.add_argument('--data', type=str, default='data/data.yaml', help='dataset.yaml path')
+        parser.add_argument('--epochs', type=int, default=5)
+        parser.add_argument('--batch-size', type=int, default=16, help='total batch size for all GPUs')
+        parser.add_argument('--project', default='', help='save to project/name')
+        parser.add_argument('--entity', default=None, help='W&B entity')
+        parser.add_argument('--name', default='', help='save to project/name')
+        parser.add_argument('--upload_dataset', action='store_true', help='Upload dataset as W&B artifact table')
+        parser.add_argument('--artifact_alias', type=str, default="latest", help='version of dataset artifact to be used')
+        
+        opt = parser.parse_args()
+        return parser, opt
 
 def try_except(func):
     # try-except function. Usage: @try_except decorator

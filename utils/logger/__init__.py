@@ -18,39 +18,6 @@ except (ImportError, AssertionError):
 
 LOGGER = ('wandb', 'tb')
 
-class Args():
-    def __init__(self):
-        self.opt = self.__parse_opt()
-
-    def get_opt(self):
-        return self.opt
-
-    def __parse_opt(self):
-        """
-        Setup arguments for this run, including:
-            - weights (str): initial weights local path or W&B path
-            - data (str): path to .yaml data file
-            - epochs (int): total epochs
-            - batch_size (int): total batch size for all GPUs
-            - project (str): W&B project name, save to project/name
-            - entity (str): W&B entity
-            - upload_dataset (boolean): upload dataset as W&B artifact
-            - artifact_alias (str): version of dataset artifact to be used
-        """
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--weights', type=str, default='', help='initial weights path')
-        parser.add_argument('--data', type=str, default='', help='dataset.yaml path')
-        parser.add_argument('--epochs', type=int, default=5)
-        parser.add_argument('--batch-size', type=int, default=16, help='total batch size for all GPUs')
-        parser.add_argument('--project', default='', help='save to project/name')
-        parser.add_argument('--entity', default=None, help='W&B entity')
-        parser.add_argument('--name', default='', help='save to project/name')
-        parser.add_argument('--upload_dataset', action='store_true', help='Upload dataset as W&B artifact table')
-        parser.add_argument('--artifact_alias', type=str, default="latest", help='version of dataset artifact to be used')
-        
-        opt = parser.parse_args()
-        return opt
-
 class SummaryWriter():
     """
     A custome Logger writes event files to be consumed by TensorBoard, Weight & Biases.
@@ -59,7 +26,7 @@ class SummaryWriter():
     to add data to the file directly from the training loop, without slowing down
     training.
     """
-    def __init__(self, log_dir:str=None, config:dict=None):
+    def __init__(self, opt:argparse.Namespace=None, log_dir:str=None, config:dict=None):
         """
         Creates a `Looger` that will capture runs metadata, write out events, version artifact
         and summaries to Tensorboard event file and Weight & Biases dashboard.
@@ -74,7 +41,7 @@ class SummaryWriter():
         """
         self.log_dir    = log_dir
         self.config     = config
-        self.opt        = Args().get_opt()
+        self.opt        = opt
         self.use_wandb  = wandb is not None
         self.log_prefix = 'Weights & Biases: ' if self.use_wandb else "Tensorboard: "
         # Message
@@ -151,11 +118,44 @@ class SummaryWriter():
     def log_dataset_artifact():
         pass
 
-    def download_dataset_artifact():
-        pass
+    def download_dataset_artifact(self, artifact_name:str=None, alias:str='latest'):
+        """
+        Download dataset artifact from Weight & Biases
+
+        Agrs:
+            artifact_name (str): Artifact name 
+            alias (str): artifact version
+        
+        Returns: 
+            (Path, wandb.Artifact) Local dataset path, Artifact object
+        """
+        if self.use_wandb:
+            artifact_dir, artifact = self.wandb.download_dataset_artifact(path=artifact_name, alias=alias)
+            return artifact_dir, artifact
+        else:
+            self.log_message("Does not support download dataset artifact from Weight & Biases database.")
+        
+        return None, None
 
     def log_model_artifact():   
         pass
 
-    def download_model_artifact():
-        pass
+    def download_model_artifact(self, artifact_name:str=None, alias:str=None):
+        """
+        Download model artifact from Weight & Biases and extract model run's metadata
+
+        Args:
+            artifact_name (str): Artifact name
+            alias (str): artifact version
+
+        Returns:
+            (Path, wandb.Artifact)
+        """
+        # TODO: extract run's metadata
+        if self.use_wandb:
+            artifact_dir, artifact = self.wandb.download_model_artifact(path=artifact_name, alias=alias)
+            return artifact_dir, artifact
+        else:
+            self.log_message("Does not support download dataset artifact from Weight & Biases database.")
+        
+        return None, None
