@@ -65,20 +65,17 @@ def test(model, epoch, testloader):
 
 if __name__ == '__main__':
     # init wandb
-    config = dict(
-        learning_rate = LEARNING_RATE,
-        momentum      = MOMENTUM,
-        architecture  = ARCHITECTURE,
-        dataset       = DATASET,
-    )
 
-    logger = SummaryWriter(log_dir="mlops-wandb-demo",config=config)
+    logger = SummaryWriter(log_dir="mlops-wandb-demo")
     # run = wandb.init(project="mlops-wandb-demo", tags=["dropout", "cnn"], config=config)
     # run.use_artifact('mnist:latest')
     # artifact = wandb.Artifact('mnist', type='dataset')
     # artifact.add_dir(DATA_PATH)
     # run.log_artifact(artifact)
-    
+
+    # TODO: download dataset artifact from Wandb
+    # train_dir = logger.download_dataset_artifact(name='artifact-name', alias='latest')
+
     # get dataloader
     train_set, test_set = get_dataset(transform=get_transform())
     trainloader, testloader = get_dataloader(train_set=train_set, test_set=test_set)

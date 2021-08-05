@@ -82,37 +82,41 @@ class WandbLogger():
                                         id=self.run_id,
                                         allow_val_change=True) if not wandb.run else wandb
 
-        if self.wandb_run:
-            if self.job_type == 'Training':
-                if not opt.weights.startswith(WANDB_ARTIFACT_PREFIX):
-                    if opt.upload_dataset:
-                        self.wandb_artifact_data_dict = self.check_and_upload_dataset(opt)
-
-                    elif opt.data.endswith('_wandb.yaml'):
-                        with open(opt.data, encoding='ascii', errors='ignore') as f:
-                            data_dict = yaml.safe_load(f)
-                        self.data_dict = data_dict
-                    else: # Local .yaml datset file or .zip file
-                        self.data_dict = check_dataset(opt.data)
-                    
-                self.setup_training(opt)
-                if not self.wandb_artifact_data_dict:
-                    self.wandb_artifact_data_dict = self.data_dict
-
-                if not opt.weights.startswith(WANDB_ARTIFACT_PREFIX):
-                    self.wandb_run.config.update({'data_dict': self.wandb_artifact_data_dict})
-
 
     def log(self, log_dict: Dict[str, Any], step:int=None):
         """
+        Log a dict to the global run's history.
+
+        Use `wandb.log` to log data from runs, such as scalars, images, video,
+        histograms, and matplotlib plots.
+
+        Arguments:
+            log_dict (dict): A dict of serializable python objects i.e `str`,
+              `ints`, `floats`, `Tensors`, `dicts`, or `wandb.data_types`.
+            step (int): (integer, optional) The global step in processing. This persists
+              any non-committed earlier steps but defaults to not committing the
+              specified step.
         """
         if self.wandb_run:
-            self.wandb_run.log(data=log_dict, 
-                                step=step)
+            self.wandb_run.log(data=log_dict, step=step)
 
 
     def watch(self, model:nn.Module, criterion=None, log="gradients", log_freq=1000, idx=None):
         """
+        Hooks into the torch model to collect gradients and the topology.
+
+        Should be extended to accept arbitrary ML models.
+        
+        Args:
+            models (torch.nn.Module): The model to hook, can be a tuple
+            criterion (torch.F): An optional loss value being optimized
+            log (str): One of "gradients", "parameters", "all", or None
+            log_freq: (int) log gradients and parameters every N batches
+            idx: (int) an index to be used when calling wandb.watch on multiple models
+            log_graph: (boolean) log graph topology
+        
+        Returns:
+            `wandb.Graph` The graph object that will populate after the first backward pass
         """
         if self.wandb_run:
             self.wandb_run.watch(model, criterion, log, log_freq, idx)
@@ -129,6 +133,7 @@ class WandbLogger():
             Updated dataset info dictionary where local dataset paths are replaced 
               by WAND_ARFACT_PREFIX links.
         """
+        # TODO: upload dataset by sperate scipt
         assert wandb, 'Install wandb to upload dataset'
         config_path = self.log_dataset_artifact(opt.data, opt.project)
         print("Created dataset config file ", config_path)
@@ -146,7 +151,7 @@ class WandbLogger():
         """
         self.log_dict = {}
         if isinstance(opt.weights, str) and opt.weights.startswith(WANDB_ARTIFACT_PREFIX):
-            model_dir = _ = self.download_model_artifact(self.model_artifact_name)
+            model_dir, _ = self.download_model_artifact(self.model_artifact_name)
             if model_dir:
                 self.weights = Path(model_dir)
                 config = self.wandb_run.config 
@@ -188,16 +193,16 @@ class WandbLogger():
               artifact object if dataset is found otherwise returns (None, None)
         
         """
-        if isinstance(path, str) and path.startswith(WANDB_ARTIFACT_PREFIX):
+        if isinstance(path, str): # and path.startswith(WANDB_ARTIFACT_PREFIX)
             artifact_path = Path(remove_prefix(path, WANDB_ARTIFACT_PREFIX) + f":{alias}")
-            dataset_artifact = wandb.use_artifact(artifact_path.as_posix().replace("\\", "/"))
+            dataset_artifact = self.wandb_run.use_artifact(artifact_path.as_posix().replace("\\", "/"))
             assert dataset_artifact is not None, "'Error: W&B dataset artifact doesn\'t exist'"
             data_dir = dataset_artifact.download()
             return data_dir, dataset_artifact
         return None, None
 
 
-    def download_model_artifact(self, model_artifact_name:str=None):
+    def download_model_artifact(self, model_artifact_name:str=None, alias:str='latest'):
         """
         Download the model checkpoint artifact if the weigth 
         start with WANDB_ARTIFACT_PREFIX
@@ -205,8 +210,8 @@ class WandbLogger():
         Args:
             opt (namespace): Comandline arguments for this run
         """
-        if isinstance(model_artifact_name, str) and model_artifact_name.startswith(WANDB_ARTIFACT_PREFIX):
-            model_artifact = wandb.use_artifact(remove_prefix(model_artifact_name, WANDB_ARTIFACT_PREFIX)+":latest")
+        if isinstance(model_artifact_name, str): # and model_artifact_name.startswith(WANDB_ARTIFACT_PREFIX):
+            model_artifact = wandb.use_artifact(remove_prefix(model_artifact_name, WANDB_ARTIFACT_PREFIX)+f":{alias}")
             assert model_artifact is not None, 'Error: W&B model artifact doesn\'t exist'
             model_dir = model_artifact.download()
             return model_dir, model_artifact
@@ -277,21 +282,30 @@ class WandbLogger():
         return artifact
 
 
-    def log_model(self, path:str, opt:argparse.Namespace, epoch:int, score:float, ):
+    def log_model(self, path:str, 
+                        epoch:int, 
+                        scores:float or dict(str, Any), 
+                        opt:argparse.Namespace=None,):
         """
         Log the model checkpoint as W&B artifact
 
         Args:
-            path (Path): Path to the checkpoints file
-            opt (namespace): Comand line arguments for this run
+            path (path): Path to the checkpoints file
             epoch (int): Current epoch number
-            score (float): score for current epoch
+            scores (float/dict): score(s) represents for current epoch
+            opt (namespace): Comand line arguments to store on artifact
+        
+        Example:
+            wandb_logger = WandbLogger()
+            for i in range(epochs):
+                accuracy = i
+                wandb_logger.log_model()
         """
-        model_artifact = wandb.Artifact('run_' + self.wandb_run.id + '_model', type='model',
-                                metadata={'project':opt.project,
-                                'epochs_trained': epoch+1,
-                                'total_epochs': opt.epochs,
-                                'score': score})
+        metadata = {'project':opt.project,
+                    'total_epochs': opt.epochs} if opt is not None else None
+        metadata['epochs_trained'] = epoch+1
+        metadata['scores'] = scores
+        model_artifact = wandb.Artifact('run_' + self.wandb_run.id + '_model', type='model', metadata=metadata)
         model_artifact.add_file(str(path))
         # logging
         self.wandb_run.log_artifact(model_artifact,
