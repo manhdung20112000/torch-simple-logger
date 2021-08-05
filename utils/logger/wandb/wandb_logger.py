@@ -69,14 +69,14 @@ class WandbLogger():
             # Resume wandb-artifact:// runs
             self.wandb_run = wandb.init(job_type=job_type,
                                         id=self.run_id, 
-                                        project=opt.project,
+                                        project=opt.project if opt.project is not None else 'MLOps-demo',
                                         entity=opt.entity,
                                         resume='allow',)
 
         elif self.wandb:
             self.wandb_run = wandb.init(config=opt,
                                         resume="allow",
-                                        project=opt.project,
+                                        project=opt.project if opt.project is not None else 'MLOps-demo',
                                         entity=opt.entity,
                                         job_type=job_type,
                                         id=self.run_id,

@@ -21,6 +21,8 @@ LOGGER = ('wandb', 'tb')
 class Args():
     def __init__(self):
         self.opt = self.__parse_opt()
+
+    def get_opt(self):
         return self.opt
 
     def __parse_opt(self):
@@ -37,12 +39,12 @@ class Args():
         """
         parser = argparse.ArgumentParser()
         parser.add_argument('--weights', type=str, default='', help='initial weights path')
-        parser.add_argument('--data', type=str, default='data/coco128.yaml', help='dataset.yaml path')
+        parser.add_argument('--data', type=str, default='', help='dataset.yaml path')
         parser.add_argument('--epochs', type=int, default=5)
         parser.add_argument('--batch-size', type=int, default=16, help='total batch size for all GPUs')
-        parser.add_argument('--project', default='runs/train', help='save to project/name')
+        parser.add_argument('--project', default='', help='save to project/name')
         parser.add_argument('--entity', default=None, help='W&B entity')
-        parser.add_argument('--name', default='exp', help='save to project/name')
+        parser.add_argument('--name', default='', help='save to project/name')
         parser.add_argument('--upload_dataset', action='store_true', help='Upload dataset as W&B artifact table')
         parser.add_argument('--artifact_alias', type=str, default="latest", help='version of dataset artifact to be used')
         
@@ -72,7 +74,7 @@ class SummaryWriter():
         """
         self.log_dir    = log_dir
         self.config     = config
-        self.opt        = Args()
+        self.opt        = Args().get_opt()
         self.use_wandb  = wandb is not None
         self.log_prefix = 'Weights & Biases: ' if self.use_wandb else "Tensorboard: "
         # Message
@@ -97,7 +99,7 @@ class SummaryWriter():
         self.tensorboard = TFWriter(str(self.log_dir))
 
     def __init_wandb(self,):
-        wandb_artifact_resume = isinstance(self.opt.weight, str) and self.opt.weight.startswith(WANDB_ARTIFACT_PREFIX)
+        # wandb_artifact_resume = isinstance(self.opt.weights, str) and self.opt.weights.startswith(WANDB_ARTIFACT_PREFIX)
         # run_id = self.opt.weights if not wandb_artifact_resume else None
         self.wandb = WandbLogger(self.opt)
 
