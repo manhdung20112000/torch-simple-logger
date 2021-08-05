@@ -112,3 +112,15 @@ class SummaryWriter():
             self.wandb.log(wb_scalar_dict, step=global_step)
         else:
             self.tensorboard.add_scalars(main_tag, tag_scalar_dict, global_step, walltime)
+
+    def log_dataset_artifact():
+        pass
+
+    def download_dataset_artifact():
+        pass
+
+    def log_model_artifact():   
+        pass
+
+    def download_model_artifact():
+        pass
