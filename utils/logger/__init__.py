@@ -1,4 +1,5 @@
 # Init logging object
+import argparse
 import warnings
 
 import torch
@@ -16,6 +17,37 @@ except (ImportError, AssertionError):
     wandb = None
 
 LOGGER = ('wandb', 'tb')
+
+class Args():
+    def __init__(self):
+        self.opt = self.__parse_opt()
+        return self.opt
+
+    def __parse_opt(self):
+        """
+        Setup arguments for this run, including:
+            - weights (str): initial weights local path or W&B path
+            - data (str): path to .yaml data file
+            - epochs (int): total epochs
+            - batch_size (int): total batch size for all GPUs
+            - project (str): W&B project name, save to project/name
+            - entity (str): W&B entity
+            - upload_dataset (boolean): upload dataset as W&B artifact
+            - artifact_alias (str): version of dataset artifact to be used
+        """
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--weights', type=str, default='', help='initial weights path')
+        parser.add_argument('--data', type=str, default='data/coco128.yaml', help='dataset.yaml path')
+        parser.add_argument('--epochs', type=int, default=5)
+        parser.add_argument('--batch-size', type=int, default=16, help='total batch size for all GPUs')
+        parser.add_argument('--project', default='runs/train', help='save to project/name')
+        parser.add_argument('--entity', default=None, help='W&B entity')
+        parser.add_argument('--name', default='exp', help='save to project/name')
+        parser.add_argument('--upload_dataset', action='store_true', help='Upload dataset as W&B artifact table')
+        parser.add_argument('--artifact_alias', type=str, default="latest", help='version of dataset artifact to be used')
+        
+        opt = parser.parse_args()
+        return opt
 
 class SummaryWriter():
     """
@@ -40,6 +72,7 @@ class SummaryWriter():
         """
         self.log_dir    = log_dir
         self.config     = config
+        self.opt        = Args()
         self.use_wandb  = wandb is not None
         self.log_prefix = 'Weights & Biases: ' if self.use_wandb else "Tensorboard: "
         # Message
@@ -64,9 +97,9 @@ class SummaryWriter():
         self.tensorboard = TFWriter(str(self.log_dir))
 
     def __init_wandb(self,):
-        # wandb_artifact_resume = isinstance(self.opt.weight, str) and self.opt.weight.startswith(WANDB_ARTIFACT_PREFIX)
-        # run_id = torch.load(self.opt.weights) if not wandb_artifact_resume else None
-        self.wandb = WandbLogger()
+        wandb_artifact_resume = isinstance(self.opt.weight, str) and self.opt.weight.startswith(WANDB_ARTIFACT_PREFIX)
+        # run_id = self.opt.weights if not wandb_artifact_resume else None
+        self.wandb = WandbLogger(self.opt)
 
     def get_logdir(self):
         """Return directory"""

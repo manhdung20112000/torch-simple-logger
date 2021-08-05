@@ -1,5 +1,6 @@
-import logging
 import os
+import logging
+import argparse
 from re import L
 import sys
 from contextlib import contextmanager
@@ -45,7 +46,7 @@ class WandbLogger():
     and basic data metrics and analyses.
 
     """
-    def __init__(self, opt:dict=None, run_id:str=None, job_type="Training"):
+    def __init__(self, opt:argparse.Namespace=None, job_type="Training"):
         """
         Initialize a Wandb runs or resume a previous run to upload dataset 
         (if `opt.upload_dataset` is True) or monitoring training processes.
@@ -56,40 +57,34 @@ class WandbLogger():
             job_type (str): Set job_type for this run
         """
         self.job_type = job_type
+        # TODO: resume
+        self.run_id   = None
         self.wandb, self.wandb_run = wandb, None if not wandb else wandb.run
-
-        if opt is None:
-            opt = {
-                'project': 'mlops-wandb-demo',
-                'entity': None,
-                'name': 'exp',
-            }
         
-        if isinstance(run_id, str) and run_id.startswith(WANDB_ARTIFACT_PREFIX):
-            entity, project, run_id, model_artifact_name = get_run_info(run_id)
-            model_artifact_name = WANDB_ARTIFACT_PREFIX + model_artifact_name
+        if isinstance(self.run_id, str) and self.run_id.startswith(WANDB_ARTIFACT_PREFIX):
+            entity, project, run_id, model_artifact_name = get_run_info(self.run_id)
+            self.model_artifact_name = WANDB_ARTIFACT_PREFIX + model_artifact_name
             
             assert wandb, 'install wandb to resume wandb runs'
             # Resume wandb-artifact:// runs
             self.wandb_run = wandb.init(job_type=job_type,
-                                        id=run_id, 
-                                        project=opt['project'],
-                                        entity=opt['entity'],
+                                        id=self.run_id, 
+                                        project=opt.project,
+                                        entity=opt.entity,
                                         resume='allow',)
 
         elif self.wandb:
             self.wandb_run = wandb.init(config=opt,
                                         resume="allow",
-                                        project=opt['project'],
-                                        entity=opt['entity'],
-                                        name=opt['name'] if opt['name'] != 'exp' else None,
+                                        project=opt.project,
+                                        entity=opt.entity,
                                         job_type=job_type,
-                                        id=run_id,
+                                        id=self.run_id,
                                         allow_val_change=True) if not wandb.run else wandb
 
         if self.wandb_run:
             if self.job_type == 'Training':
-                if not opt.resume:
+                if not opt.weights.startswith(WANDB_ARTIFACT_PREFIX):
                     if opt.upload_dataset:
                         self.wandb_artifact_data_dict = self.check_and_upload_dataset(opt)
 
@@ -106,21 +101,24 @@ class WandbLogger():
 
                 if not opt.weights.startswith(WANDB_ARTIFACT_PREFIX):
                     self.wandb_run.config.update({'data_dict': self.wandb_artifact_data_dict})
-                    pass
 
 
     def log(self, log_dict: Dict[str, Any], step:int=None):
+        """
+        """
         if self.wandb_run:
             self.wandb_run.log(data=log_dict, 
                                 step=step)
 
 
     def watch(self, model:nn.Module, criterion=None, log="gradients", log_freq=1000, idx=None):
+        """
+        """
         if self.wandb_run:
             self.wandb_run.watch(model, criterion, log, log_freq, idx)
 
     
-    def check_and_upload_dataset(self, opt):
+    def check_and_upload_dataset(self, opt:argparse.Namespace=None):
         """
         Check if the dataset format is compatible and upload it as W&B artifact
 
@@ -138,7 +136,7 @@ class WandbLogger():
             wandb_data_dict = yaml.safe_load(f)
         return wandb_data_dict
 
-    def setup_training(self, opt):
+    def setup_training(self, opt:argparse.Namespace=None):
         """
         Setup the necessary processes for training models:
         - Attempt to download model checkpoint and dataset artifact (if opt.weights 
@@ -148,7 +146,7 @@ class WandbLogger():
         """
         self.log_dict = {}
         if isinstance(opt.weights, str) and opt.weights.startswith(WANDB_ARTIFACT_PREFIX):
-            model_dir = _ = self.download_model_artifact(opt)
+            model_dir = _ = self.download_model_artifact(self.model_artifact_name)
             if model_dir:
                 self.weights = Path(model_dir)
                 config = self.wandb_run.config 
@@ -199,7 +197,7 @@ class WandbLogger():
         return None, None
 
 
-    def download_model_artifact(self, opt):
+    def download_model_artifact(self, model_artifact_name:str=None):
         """
         Download the model checkpoint artifact if the weigth 
         start with WANDB_ARTIFACT_PREFIX
@@ -207,8 +205,8 @@ class WandbLogger():
         Args:
             opt (namespace): Comandline arguments for this run
         """
-        if isinstance(opt.weights, str) and opt.weights.startswith(WANDB_ARTIFACT_PREFIX):
-            model_artifact = wandb.use_artifact(remove_prefix(opt.ưeights, WANDB_ARTIFACT_PREFIX)+":latest")
+        if isinstance(model_artifact_name, str) and model_artifact_name.startswith(WANDB_ARTIFACT_PREFIX):
+            model_artifact = wandb.use_artifact(remove_prefix(model_artifact_name, WANDB_ARTIFACT_PREFIX)+":latest")
             assert model_artifact is not None, 'Error: W&B model artifact doesn\'t exist'
             model_dir = model_artifact.download()
             return model_dir, model_artifact
@@ -279,7 +277,7 @@ class WandbLogger():
         return artifact
 
 
-    def log_model(self, path, opt, epoch, score):
+    def log_model(self, path:str, opt:argparse.Namespace, epoch:int, score:float, ):
         """
         Log the model checkpoint as W&B artifact
 
