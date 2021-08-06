@@ -1,12 +1,52 @@
+import argparse
 import glob
 import logging
 import os
 import platform
 from pathlib import Path
+from itertools import repeat
 from subprocess import check_output
 
+import torch
 import pkg_resources as pkg
+import yaml
+from multiprocessing.pool import ThreadPool
 
+class Args():
+    def __init__(self):
+        self.parser, self.opt = self.__parse_opt()
+
+    def get_opt(self):
+        return self.opt
+    
+    def get_parser(self):
+        return self.parser
+
+    def __parse_opt(self):
+        """
+        Setup arguments for this run, including:
+            - weights (str): initial weights local path or W&B path
+            - data (str): path to .yaml data file
+            - epochs (int): total epochs
+            - batch_size (int): total batch size for all GPUs
+            - project (str): W&B project name, save to project/name
+            - entity (str): W&B entity
+            - upload_dataset (boolean): upload dataset as W&B  artifact
+            - artifact_alias (str): version of dataset artifact to be used
+        """
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--weights', type=str, default='', help='initial weights path')
+        parser.add_argument('--data', type=str, default='data/data.yaml', help='dataset.yaml path')
+        parser.add_argument('--epochs', type=int, default=5)
+        parser.add_argument('--batch-size', type=int, default=16, help='total batch size for all GPUs')
+        parser.add_argument('--project', default='', help='save to project/name')
+        parser.add_argument('--entity', default=None, help='W&B entity')
+        parser.add_argument('--name', default='', help='save to project/name')
+        parser.add_argument('--upload_dataset', action='store_true', help='Upload dataset as W&B artifact table')
+        parser.add_argument('--artifact_alias', type=str, default="latest", help='version of dataset artifact to be used')
+        
+        opt = parser.parse_args()
+        return parser, opt
 
 def try_except(func):
     # try-except function. Usage: @try_except decorator
@@ -39,6 +79,88 @@ def check_online():
         return True
     except OSError:
         return False
+
+
+def check_dataset(data, autodownload=True):
+    # Download and/or unzip dataset if not found locally
+    # Download (optional)
+    extract_dir = ''
+    if isinstance(data, (str, Path)) and str(data).endswith('.zip'):  # i.e. gs://bucket/dir/coco128.zip
+        download(data, dir='../datasets', unzip=True, delete=False, curl=False, threads=1)
+        data = next((Path('../datasets') / Path(data).stem).rglob('*.yaml'))
+        extract_dir, autodownload = data.parent, False
+    
+    # Read yaml (optional)
+    if isinstance(data, (str, Path)):
+        with open(data, encoding='ascii', errors='ignore') as f:
+            data = yaml.safe_load(f)  # dictionary
+
+    # Parse yaml
+    path = extract_dir or Path(data.get('path') or '')  # optional 'path' default to '.'
+    for k in 'train', 'val', 'test':
+        if data.get(k):  # prepend path
+            data[k] = str(path / data[k]) if isinstance(data[k], str) else [str(path / x) for x in data[k]]
+
+    train, val, test, s = [data.get(x) for x in ('train', 'val', 'test', 'download')]
+    
+    # Check local dataset
+    if val:
+        val = [Path(x).resolve() for x in (val if isinstance(val, list) else [val])]  # val path
+        if not all(x.exist() for x in val):
+            print('\nWARNING: Dataset not found, nonexistent paths: %s' % [str(x) for x in val if not x.exists()])
+            if s and autodownload: # download script
+                if s.startswith('http') and s.endswith('.zip'):  # URL
+                    f = Path(s).name  # filename
+                    print(f'Downloading {s} ...')
+                    torch.hub.download_url_to_file(s, f)
+                    root = path.parent if 'path' in data else '..'  # unzip directory i.e. '../'
+                    Path(root).mkdir(parents=True, exist_ok=True)  # create root
+                    r = os.system(f'unzip -q {f} -d {root} && rm {f}')  # unzip
+                elif s.startswith('bash '):  # bash script
+                    print(f'Running {s} ...')
+                    r = os.system(s)
+                else:  # python script
+                    r = exec(s, {'yaml': data})  # return None
+                print('Dataset autodownload %s\n' % ('success' if r in (0, None) else 'failure'))  # print result
+            else:
+                raise Exception('Dataset not found.')
+
+    return data  # dictionary
+
+
+def download(url, dir='.', unzip=True, delete=True, curl=False, threads=1):
+    # Multi-threaded file download and unzip function, used in data.yaml for autodownload
+    def download_one(url, dir):
+        # Download 1 file
+        f = dir / Path(url).name  # filename
+        if Path(url).is_file():  # exists in current path
+            Path(url).rename(f)  # move to dir
+        elif not f.exists():
+            print(f'Downloading {url} to {f}...')
+            if curl:
+                os.system(f"curl -L '{url}' -o '{f}' --retry 9 -C -")  # curl download, retry and resume on fail
+            else:
+                torch.hub.download_url_to_file(url, f, progress=True)  # torch download
+        if unzip and f.suffix in ('.zip', '.gz'):
+            print(f'Unzipping {f}...')
+            if f.suffix == '.zip':
+                s = f'unzip -qo {f} -d {dir}'  # unzip -quiet -overwrite
+            elif f.suffix == '.gz':
+                s = f'tar xfz {f} --directory {f.parent}'  # unzip
+            if delete:  # delete zip file after unzip
+                s += f' && rm {f}'
+            os.system(s)
+
+    dir = Path(dir)
+    dir.mkdir(parents=True, exist_ok=True)  # make directory
+    if threads > 1:
+        pool = ThreadPool(threads)
+        pool.imap(lambda x: download_one(*x), zip(url, repeat(dir)))  # multi-threaded
+        pool.close()
+        pool.join()
+    else:
+        for u in [url] if isinstance(url, (str, Path)) else url:
+            download_one(u, dir)
 
 
 @try_except

@@ -1,6 +1,5 @@
-from models.model import Net
-from utils.utils import get_dataloader, get_dataset, get_transform
 
+import os
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
@@ -8,8 +7,10 @@ from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
 from config import *
-from utils.logger import SummaryWriter
 
+from models.model import Net
+from utils.logger import SummaryWriter
+from utils.utils import get_dataloader, get_dataset, get_transform
 
 # from torch.utils.tensorboard import SummaryWriter
 
@@ -32,15 +33,7 @@ def train(model, epoch, trainloader, optimizer, loss_function):
     total_loss = running_loss / len(trainloader.dataset)
     logger.add_scalar('train/avg_loss', total_loss, global_step=epoch)
 
-    # wandb save as artifact
-    # torch.onnx.export(model, input, RUN_NAME+'.onnx')
-    # wandb.save(RUN_NAME+'.onnx')
-    # trained_weight = wandb.Artifact("CNN", type="model", description="test")
-    # trained_weight.add_file(RUN_NAME+'.onnx')
-    # run.log_artifact(trained_weight)
-    # pytorch save
-    # torch.save(model.state_dict(), SAVE_PATH+'.pth')
-    return
+    return total_loss
 
 
 def test(model, epoch, testloader):
@@ -61,22 +54,29 @@ def test(model, epoch, testloader):
                'accuracy': test_accuracy, }
 
     logger.add_scalars(main_tag='eval', tag_scalar_dict=scalars, global_step=epoch)
+    
+    # save model
+    save_path = 'exp/'
+    if not os.path.exists(save_path):
+        os.mkdir(save_path)
+    model_path = os.path.join(save_path, 'weight.pt')
+    torch.save(model.state_dict(), model_path)
+    logger.log_model_artifact(path=model_path, 
+                                epoch=epoch, 
+                                scores=scalars,)
+
     return test_loss, test_accuracy
 
 
 if __name__ == '__main__':
     # init wandb
-    config = dict(
-        learning_rate=LEARNING_RATE,
-        momentum=MOMENTUM,
-        architecture=ARCHITECTURE,
-        dataset=DATASET,
-    )
+    logger = SummaryWriter(log_dir="mlops-wandb-demo")
 
-    logger = SummaryWriter(log_dir="mlops-wandb-demo", config=config)
+    # Download dataset artifact from Wandb
+    dataset_dir, _ = logger.download_dataset_artifact(artifact_name='mnist', alias='latest')
 
     # get dataloader
-    train_set, test_set = get_dataset(transform=get_transform())
+    train_set, test_set = get_dataset(path=dataset_dir, transform=get_transform(), download=False) # turn off auto download
     trainloader, testloader = get_dataloader(train_set=train_set, test_set=test_set)
 
     # create model
@@ -97,9 +97,9 @@ if __name__ == '__main__':
     for epoch in pb:
         train_loss = train(model, epoch, trainloader, optimizer, loss_function)
         train_losses.append(train_loss)
-        print(epoch, train_loss)
+        pb.set_description(f'Epoch: {epoch} | Train loss: {train_loss:.3f}', refresh=False)
 
         test_loss, test_acc = test(model, epoch, testloader)
         test_losses.append(test_loss)
         test_accuracy.append(test_acc)
-        print(epoch, test_loss, test_acc)
+        pb.set_description(f'Epoch: {epoch} | Test loss: {test_loss:.3f} | Test accuracy: {test_acc:.3f}', refresh=False)
