@@ -219,47 +219,37 @@ class WandbLogger():
         return None, None
 
 
-    def log_dataset_artifact(self, data_file, project, overwrite_config=False):
+    def log_dataset_artifact(self, 
+                            path:str, 
+                            artifact_name:str,
+                            dataset_type:str='dataset',
+                            dataset_metadata:dict=None):
         """
         Log the dataset as W&B artifact and return the new data file with W&B links
 
         Args:
-            data_file (str): 
-            project (str): 
-            overwrite_config (boolean): 
+            path (str): Path to dataset artifact dir/file.
+            artifact_name (str): 
+            dataset_type (str): 
 
-        Returns:
-            the new .yaml file with artifact link (which can be used to training directly)
+        Example:
+            path = './path/to/dir/or/file'
+            logger = WandbLogger()
+            logger.log_dataset_artifact(path, 'raw-mnist', 'dataset')
         """
-        self.data_dict = check_dataset(data_file)
+        if not os.path.exists(path):
+            print('File or dir does not exist.')
+            return
         
-        data = dict(self.data_dict)
-        self.train_artifact = self.create_dataset_artifact(data['train'], name='train') if data.get('train') else None
-        self.val_artifact = self.create_dataset_artifact(data['val'], name='val') if data.get('val') else None
-
-        if data.get('train'):
-            data['train'] = WANDB_ARTIFACT_PREFIX + str(Path(project) / 'train')
-        if data.get('val'):
-            data['val'] = WANDB_ARTIFACT_PREFIX + str(Path(project) / 'val')
-
-        path = Path(data_file).stem
-        path = (path if overwrite_config else path + '_wandb') + '.yaml'  # updated data.yaml path
-        data.pop('download', None)
-        data.pop('path', None)
-        with open(path, 'w') as f:
-            yaml.safe_dump(data, f)
-
-        if self.job_type == 'Training': 
-            self.wandb_run.use_artifact(self.val_artifact)
-            self.wandb_run.use_artifact(self.train_artifact)
-            # self.val_artifact.wait()
-            # self.val_table = self.val_artifact.get('val')
-            # self.map_val_table_path()
-        else:
-            self.wandb_run.log_artifact(self.train_artifact)
-            self.wandb_run.log_artifact(self.val_artifact)
-        return path
-
+        dataset_artifact = wandb.Artifact(name=artifact_name, 
+                                            type=dataset_type, 
+                                            metadata=dataset_metadata,)
+        if os.path.isdir():
+            dataset_artifact.add_dir(path)
+        elif os.path.isfile():
+            dataset_artifact.add_file(path)
+        print('Upload dataset into Weight & Biases.')
+        self.wandb_run.log_artifact(dataset_artifact)
 
     def create_dataset_artifact(self, path, name='dataset', type='dataset'):
         """
