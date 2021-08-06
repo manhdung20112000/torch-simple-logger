@@ -115,8 +115,25 @@ class SummaryWriter():
         else:
             self.tensorboard.add_scalars(main_tag, tag_scalar_dict, global_step, walltime)
 
-    def log_dataset_artifact():
-        pass
+    def log_dataset_artifact(self, 
+                            path:str, 
+                            artifact_name:str,
+                            dataset_type:str='dataset',
+                            dataset_metadata:dict=None):
+        """
+        Log dataset as W&B artifact.
+
+        Args:
+            path (str): Path to weight local file
+            artifact_name (str): Name represents the dataset artifact
+            dataset_type (str): Datasets' type
+            dataset_metadata (dict): Datasets' metadata
+        """
+        if self.use_wandb:
+            self.wandb.log_dataset_artifact(path, artifact_name, dataset_type, dataset_metadata)
+            pass
+        else:
+            self.log_message("Does not support upload dataset to Weight & Biases.")
 
     def download_dataset_artifact(self, artifact_name:str, alias:str='latest',):
         """
