@@ -135,7 +135,7 @@ class SummaryWriter():
         else:
             self.log_message("Does not support upload dataset to Weight & Biases.")
 
-    def download_dataset_artifact(self, artifact_name:str, alias:str='latest',):
+    def download_dataset_artifact(self, artifact_name:str, alias:str, save_path:str=None):
         """
         Download dataset artifact from Weight & Biases
 
@@ -147,7 +147,9 @@ class SummaryWriter():
             (Path, wandb.Artifact) Local dataset path, Artifact object
         """
         if self.use_wandb:
-            artifact_dir, artifact = self.wandb.download_dataset_artifact(path=artifact_name, alias=alias)
+            artifact_dir, artifact = self.wandb.download_dataset_artifact(path=WANDB_ARTIFACT_PREFIX+artifact_name, 
+                                                                            alias=alias, 
+                                                                            save_path=save_path)
             return artifact_dir, artifact
         else:
             self.log_message("Does not support download dataset artifact from Weight & Biases database.")

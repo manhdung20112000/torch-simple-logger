@@ -180,7 +180,7 @@ class WandbLogger():
         if train_from_artifact:
             self.data_dict = data_dict
 
-    def download_dataset_artifact(self, path, alias):
+    def download_dataset_artifact(self, path:str, alias:str='latest', save_path:str=None):
         """
         Download the dataset artifact if the path starts with WANDB_ARTIFACT_PREFIX
 
@@ -197,7 +197,7 @@ class WandbLogger():
             artifact_path = Path(remove_prefix(path, WANDB_ARTIFACT_PREFIX) + f":{alias}")
             dataset_artifact = self.wandb_run.use_artifact(artifact_path.as_posix().replace("\\", "/"))
             assert dataset_artifact is not None, "'Error: W&B dataset artifact doesn\'t exist'"
-            data_dir = dataset_artifact.download()
+            data_dir = dataset_artifact.download(save_path if save_path is not None else None)
             return data_dir, dataset_artifact
         return None, None
 
@@ -293,7 +293,7 @@ class WandbLogger():
         """
         # TODO: log opt metadata to Wandb run summary
         metadata = {'project':opt.project,
-                    'total_epochs': opt.epochs} if opt is not None else None
+                    'total_epochs': opt.epochs} if opt is not None else {}
         metadata['epochs_trained'] = epoch+1 if epoch is not None else None
         if isinstance(scores, float):
             metadata['scores'] = scores

@@ -10,9 +10,9 @@ def get_transform():
 
     return transform
 
-def get_dataset(transform, download=True):
-    train_set = torchvision.datasets.MNIST(root=DATA_PATH, train=True, download=download, transform=transform)
-    test_set  = torchvision.datasets.MNIST(root=DATA_PATH, train=False, download=download, transform=transform)
+def get_dataset(path, transform, download=True):
+    train_set = torchvision.datasets.MNIST(root=path, train=True, download=download, transform=transform)
+    test_set  = torchvision.datasets.MNIST(root=path, train=False, download=download, transform=transform)
     return train_set, test_set
 
 def get_dataloader(train_set, test_set):
