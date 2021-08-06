@@ -40,8 +40,8 @@ class SummaryWriter():
 
         """
         self.log_dir    = log_dir
-        self.config     = config
-        self.opt        = opt
+        # self.config     = config # move config to opt (namespace)
+        self.opt        = opt if opt is not None else None
         self.use_wandb  = wandb is not None
         self.log_prefix = 'Weights & Biases: ' if self.use_wandb else "Tensorboard: "
         # Message
@@ -118,7 +118,7 @@ class SummaryWriter():
     def log_dataset_artifact():
         pass
 
-    def download_dataset_artifact(self, artifact_name:str=None, alias:str='latest'):
+    def download_dataset_artifact(self, artifact_name:str, alias:str='latest',):
         """
         Download dataset artifact from Weight & Biases
 
@@ -137,8 +137,24 @@ class SummaryWriter():
         
         return None, None
 
-    def log_model_artifact():   
-        pass
+    def log_model_artifact(self, 
+                            path:str, 
+                            epoch:int=None, 
+                            scores:float or dict=None, 
+                            opt:argparse.Namespace=None,):
+        """
+        Log the model as W&B artifact.
+
+        Args:
+            path (str): Path to weight local file
+            epoch (int): Current epoch number
+            scores (float/dict): score(s) represents for current epoch
+            opt (namespace): Comand line arguments to store on artifact
+        """
+        if self.use_wandb:
+            self.wandb.log_model(path, epoch, scores, opt)
+        else:
+            self.log_message("Does not support upload dataset artifact to Weight & Biases.")
 
     def download_model_artifact(self, artifact_name:str=None, alias:str=None):
         """

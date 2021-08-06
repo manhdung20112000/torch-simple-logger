@@ -283,8 +283,8 @@ class WandbLogger():
 
 
     def log_model(self, path:str, 
-                        epoch:int, 
-                        scores:float or dict(str, Any), 
+                        epoch:int=None, 
+                        scores:float or dict(str, Any)=None, 
                         opt:argparse.Namespace=None,):
         """
         Log the model checkpoint as W&B artifact
@@ -301,10 +301,18 @@ class WandbLogger():
                 accuracy = i
                 wandb_logger.log_model()
         """
+        # TODO: log opt metadata to Wandb run summary
         metadata = {'project':opt.project,
                     'total_epochs': opt.epochs} if opt is not None else None
-        metadata['epochs_trained'] = epoch+1
-        metadata['scores'] = scores
+        metadata['epochs_trained'] = epoch+1 if epoch is not None else None
+        if isinstance(scores, float):
+            metadata['scores'] = scores
+        elif isinstance(scores, dict):
+            for key, val in scores.items():
+                metadata[key] = val
+        else:
+            metadata['scores'] = None
+
         model_artifact = wandb.Artifact('run_' + self.wandb_run.id + '_model', type='model', metadata=metadata)
         model_artifact.add_file(str(path))
         # logging
