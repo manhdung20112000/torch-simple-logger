@@ -31,9 +31,8 @@ jobs:
       
       - name: Install dependencies
         run: |
-          apt-get update
-          pip install -r requirements.txt
           python -m pip install --upgrade pip
+          pip install -r requirements.txt
           python --version
           pip --version
 
@@ -43,6 +42,9 @@ jobs:
         env:
           WANDB_KEY_API: ${{ secrets.WANDB_API_KEY_NMD }}
         run: |
+          # Wandb login
+          wandb login ${{ secrets.WANDB_API_KEY_NMD }}
+          
           # Training model
           python train.py
           
