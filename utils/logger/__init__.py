@@ -1,5 +1,6 @@
 # Init logging object
 import argparse
+import os
 import warnings
 
 import torch
@@ -162,7 +163,7 @@ class SummaryWriter():
                             scores:float or dict=None, 
                             opt:argparse.Namespace=None,):
         """
-        Log the model as W&B artifact.
+        Logging the model as W&B artifact.
 
         Args:
             path (str): Path to weight local file
@@ -174,6 +175,52 @@ class SummaryWriter():
             self.wandb.log_model(path, epoch, scores, opt)
         else:
             self.log_message("Does not support upload dataset artifact to Weight & Biases.")
+
+
+    def save(self, obj, 
+                    path:str,
+                    epoch:int=None,
+                    scores:float or dict=None):
+        """
+        Saving model using torch.save and log into Weight & Biases
+
+        Args:
+            obj (nn.parameter or dict): Object to be saved
+            path (str): Path to save the object
+            epoch (str): Current epoch
+            scores (float or dict): Current achived scores
+
+        Example:
+            logger = SummaryWriter()
+            for epoch in epochs:
+                ...
+
+                obj = {'model': model.state_dict()
+                        'optimizer': optimizer.state_dict()}
+                logger.save(obj, 'path/to/save/dir', epoch, scores)
+
+        """
+        parent_path = os.path.normpath(os.path.join(path, os.path.pardir))
+        if not os.path.exists(parent_path):
+            os.makedirs(parent_path)
+        
+        if epoch is not None:
+            obj['epoch'] = epoch
+        if scores is not None:
+            if isinstance(scores, float):
+                obj['score'] = scores
+            elif isinstance(scores, dict):
+                for key, value in scores.items():
+                    obj[key] = value
+        torch.save(obj, path)
+        
+        if self.use_wandb:
+            self.log_model_artifact(path=path,
+                                    epoch=epoch,
+                                    scores=scores)
+        else:
+            self.log_message(f"Saved model in {path}. Using `wandb` to upload model into Weight & Biases.")
+
 
     def download_model_artifact(self, artifact_name:str=None, alias:str=None):
         """

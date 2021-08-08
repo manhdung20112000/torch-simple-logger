@@ -306,8 +306,10 @@ class WandbLogger():
         model_artifact = wandb.Artifact('run_' + self.wandb_run.id + '_model', type='model', metadata=metadata)
         model_artifact.add_file(str(path))
         # logging
-        self.wandb_run.log_artifact(model_artifact,
-                                    aliases=['latest', 'epoch '+ str(epoch+1)])
+        aliases = ['latest']
+        if epoch is not None:
+            aliases.append('epoch '+ str(epoch+1))
+        self.wandb_run.log_artifact(model_artifact, aliases=aliases)
         print(f"Saving model on epoch {epoch} done.")
 
 
