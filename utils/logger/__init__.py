@@ -145,14 +145,16 @@ class SummaryWriter():
             return local_path
 
         if Path(local_path).exists():
+            # TODO: check whether local_path contains the right version
+            return local_path
+
+        elif not Path(local_path).exists():
             if self.use_wandb:
                 data_path, _ = self.download_dataset_artifact(dataset_name, version)
                 return data_path
-            else:
-                return local_path
 
         else:
-            raise Exception('Dataset not found')
+            raise Exception('Dataset not found.')
 
     def log_dataset_artifact(self,
                              path: str,
