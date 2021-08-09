@@ -19,6 +19,7 @@ except (ImportError, AssertionError):
 
 LOGGER = ('wandb', 'tb')
 
+
 class SummaryWriter():
     """
     A custome Logger writes event files to be consumed by TensorBoard, Weight & Biases.
@@ -27,7 +28,8 @@ class SummaryWriter():
     to add data to the file directly from the training loop, without slowing down
     training.
     """
-    def __init__(self, opt:argparse.Namespace=None, log_dir:str=None, config:dict=None):
+
+    def __init__(self, opt: argparse.Namespace = None, log_dir: str = None, config: dict = None):
         """
         Creates a `Looger` that will capture runs metadata, write out events, version artifact
         and summaries to Tensorboard event file and Weight & Biases dashboard.
@@ -54,19 +56,19 @@ class SummaryWriter():
         else:
             self.__init_tensorboard()
 
-    def log_message(self, message:str, prefix:str=None):
+    def log_message(self, message: str, prefix: str = None):
         if prefix is None:
             prefix = self.log_prefix
 
         prefix = colorstr(prefix)
         s = f"{prefix}{message}"
         print(str(s))
-    
-    def __init_tensorboard(self,):
+
+    def __init_tensorboard(self, ):
         self.log_message(f"Start with 'tensorboard --logdir {self.log_dir}', view at http://localhost:6006/")
         self.tensorboard = TFWriter(str(self.log_dir))
 
-    def __init_wandb(self,):
+    def __init_wandb(self, ):
         # wandb_artifact_resume = isinstance(self.opt.weights, str) and self.opt.weights.startswith(WANDB_ARTIFACT_PREFIX)
         # run_id = self.opt.weights if not wandb_artifact_resume else None
         self.wandb = WandbLogger(self.opt)
@@ -75,13 +77,13 @@ class SummaryWriter():
         """Return directory"""
         return self.log_dir
 
-    def watch_model(self, model:nn.Module, criterion=None, log="gradients", log_freq=1000, idx=None):
+    def watch_model(self, model: nn.Module, criterion=None, log="gradients", log_freq=1000, idx=None):
         if self.use_wandb:
             self.wandb.watch(model, criterion, log, log_freq, idx)
         else:
             self.log_message("Does not support watch model with Tensorboard, please use wandb")
-    
-    def add_scalar(self, tag:str, scalar_value, global_step=None):
+
+    def add_scalar(self, tag: str, scalar_value, global_step=None):
         """
         log(
             data: Dict[str, Any],
@@ -91,11 +93,11 @@ class SummaryWriter():
         ) -> None
         """
         if self.use_wandb:
-            self.wandb.log({tag:scalar_value}, step=global_step)
+            self.wandb.log({tag: scalar_value}, step=global_step)
         else:
             self.tensorboard.add_scalar(tag, scalar_value, global_step)
 
-    def add_scalars(self, main_tag, tag_scalar_dict:dict, global_step=None, walltime=None):
+    def add_scalars(self, main_tag, tag_scalar_dict: dict, global_step=None, walltime=None):
         """
         Usage:
             main_tag = 'train'
@@ -110,17 +112,31 @@ class SummaryWriter():
         if self.use_wandb:
             wb_scalar_dict = {}
             for key, value in tag_scalar_dict.items():
-                wb_scalar_dict[str(main_tag+'/'+key)] = value
-                
+                wb_scalar_dict[str(main_tag + '/' + key)] = value
+
             self.wandb.log(wb_scalar_dict, step=global_step)
         else:
             self.tensorboard.add_scalars(main_tag, tag_scalar_dict, global_step, walltime)
 
-    def log_dataset_artifact(self, 
-                            path:str, 
-                            artifact_name:str,
-                            dataset_type:str='dataset',
-                            dataset_metadata:dict=None):
+    def data_path(self, local_path: str, dataset_name: str, version: str = "latest"):
+        """
+        This function will return the local dataset path in local environment,
+         return the wandb datapath in wandb environment.
+        @param local_path:
+        @param dataset_name:
+        @param version:
+        @return:Z
+        """
+        if self.use_wandb:
+            data_path, _ = self.download_dataset_artifact(dataset_name, version)
+        else:
+            return local_path
+
+    def log_dataset_artifact(self,
+                             path: str,
+                             artifact_name: str,
+                             dataset_type: str = 'dataset',
+                             dataset_metadata: dict = None):
         """
         Log dataset as W&B artifact.
 
@@ -136,32 +152,32 @@ class SummaryWriter():
         else:
             self.log_message("Does not support upload dataset to Weight & Biases.")
 
-    def download_dataset_artifact(self, name:str=None, alias:str=None, save_path:str=None):
+    def download_dataset_artifact(self, dataset_name: str, version: str, save_path: str = None):
         """
         Download dataset artifact from Weight & Biases
 
         Agrs:
-            artifact_name (str): Artifact name or URL to download
-            alias (str): Artifact version
-            save_path (str): Saving path
+            dataset_name (str): Artifact name
+            version (str): artifact version
+        
         Returns: 
             (Path, wandb.Artifact) Local dataset path, Artifact object
         """
         if self.use_wandb:
-            artifact_dir, artifact = self.wandb.download_dataset_artifact(path=WANDB_ARTIFACT_PREFIX+name, 
-                                                                            alias=alias, 
-                                                                            save_path=save_path)
-            return artifact_dir, artifact
+            dataset_dir, version = self.wandb.download_dataset_artifact(path=WANDB_ARTIFACT_PREFIX + dataset_name,
+                                                                        alias=version,
+                                                                        save_path=save_path)
+            return dataset_dir, version
         else:
-            self.log_message("Does not support download dataset artifact from Weight & Biases database.")
-        
+            self.log_message("Please enable wandb not support download dataset artifact from Weight & Biases database.")
+
         return None, None
 
-    def log_model_artifact(self, 
-                            path:str, 
-                            epoch:int=None, 
-                            scores:float or dict=None, 
-                            opt:argparse.Namespace=None,):
+    def log_model_artifact(self,
+                           path: str,
+                           epoch: int = None,
+                           scores: float or dict = None,
+                           opt: argparse.Namespace = None, ):
         """
         Logging the model as W&B artifact.
 
@@ -177,7 +193,7 @@ class SummaryWriter():
             self.log_message("Does not support upload dataset artifact to Weight & Biases.")
 
 
-    def save(self, obj, 
+    def save(self, obj,
                     path:str,
                     epoch:int=None,
                     scores:float or dict=None):
@@ -203,7 +219,7 @@ class SummaryWriter():
         parent_path = os.path.normpath(os.path.join(path, os.path.pardir))
         if not os.path.exists(parent_path):
             os.makedirs(parent_path)
-        
+
         if epoch is not None:
             obj['epoch'] = epoch
         if scores is not None:
@@ -213,7 +229,7 @@ class SummaryWriter():
                 for key, value in scores.items():
                     obj[key] = value
         torch.save(obj, path)
-        
+
         if self.use_wandb:
             self.log_model_artifact(path=path,
                                     epoch=epoch,
@@ -239,5 +255,5 @@ class SummaryWriter():
             return artifact_dir, artifact
         else:
             self.log_message("Does not support download dataset artifact from Weight & Biases database.")
-        
+
         return None, None
