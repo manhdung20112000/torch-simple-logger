@@ -134,12 +134,13 @@ class SummaryWriter():
             filename = root / Path(local_path).name
             print(f'Downloading {local_path} to {filename}')
             torch.hub.download_url_to_file(local_path, filename)
-            if local_path.endswith('.zip'): # unzip
+            local_path = str(filename)
+            if local_path.endswith('.zip'):  # unzip
                 save_path = root / Path(filename.name[:-len('.zip')])
                 print(f'Unziping {filename} to {save_path}')
-                os.system(f'unzip -q {filename} -d {root} && rm {filename}')  # unzip
-                filename = save_path
-            return str(filename)
+                os.system(f'unzip -q {filename} -d {root} && rm {filename}')
+                local_path = str(save_path)
+            return local_path
 
         if Path(local_path).exists():
             if self.use_wandb:
@@ -147,6 +148,7 @@ class SummaryWriter():
                 return data_path
             else:
                 return local_path
+
         else:
             raise Exception('Dataset not found')
 
