@@ -67,7 +67,8 @@ if __name__ == '__main__':
     logger = SummaryWriter(log_dir="mlops-wandb-demo")
 
     # Download dataset artifact from Wandb
-    dataset_dir = logger.data_path(local_path="./data/", dataset_name='mnist', version='latest')
+    url = 'https://github.com/manhdung20112000/torch-simple-logger/releases/download/dataset_v1.0/MNIST.zip'
+    dataset_dir = logger.data_path(local_path=url, dataset_name='mnist', version='latest')
 
     # get dataloader
     train_set, test_set = get_dataset(path=dataset_dir, transform=get_transform(), download=False) # turn off auto download
