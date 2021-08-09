@@ -1,6 +1,7 @@
 # Init logging object
 import argparse
 import os
+from pathlib import Path
 import warnings
 
 import torch
@@ -118,7 +119,7 @@ class SummaryWriter():
         else:
             self.tensorboard.add_scalars(main_tag, tag_scalar_dict, global_step, walltime)
 
-    def data_path(self, local_path: str, dataset_name: str, version: str = "latest"):
+    def data_path(self, local_path: str, dataset_name: str = None, version: str = "latest"):
         """
         This function will return the local dataset path in local environment,
          return the wandb datapath in wandb environment.
@@ -127,11 +128,24 @@ class SummaryWriter():
         @param version:
         @return:Z
         """
-        if self.use_wandb:
-            data_path, _ = self.download_dataset_artifact(dataset_name, version)
-            return data_path
+        if local_path.startswith('http'):
+            default_root = './datasets'
+            Path(default_root).mkdir(parents=True, exist_ok=True)  # create root
+            f = default_root / Path(local_path).name
+            print(f'Downloading {local_path} to {f}')
+            torch.hub.download_url_to_file(local_path, f)
+            if local_path.endswith('.zip'): # unzip to f
+                print(f'Unziping {f} and deleting .zip files')
+                r = os.system(f'unzip -q {f} -d {default_root} && rm {f}')  # unzip
+
+        if Path(local_path).exists():
+            if self.use_wandb:
+                data_path, _ = self.download_dataset_artifact(dataset_name, version)
+                return data_path
+            else:
+                return local_path
         else:
-            return local_path
+            raise Exception('Dataset not found')
 
     def log_dataset_artifact(self,
                              path: str,
