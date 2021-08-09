@@ -1,10 +1,11 @@
 # dir
 .vscode/
-*/__pycache__/
-*/dataset
-*/MNIST
+__pycache__/
+dataset
+MNIST/
+artifacts
 # run experiment
-/wandb 
+wandb
 
 # file
 *.pyc
