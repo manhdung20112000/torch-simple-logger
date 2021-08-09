@@ -73,7 +73,7 @@ if __name__ == '__main__':
     logger = SummaryWriter(log_dir="mlops-wandb-demo")
 
     # Download dataset artifact from Wandb
-    dataset_dir, _ = logger.download_dataset_artifact(artifact_name='mnist', alias='latest')
+    dataset_dir = logger.data_path(local_path="./data/", dataset_name='mnist', version='latest')
 
     # get dataloader
     train_set, test_set = get_dataset(path=dataset_dir, transform=get_transform(), download=False) # turn off auto download
