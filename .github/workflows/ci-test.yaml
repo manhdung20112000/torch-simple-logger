@@ -39,11 +39,21 @@ jobs:
 
         shell: bash
 
-      - name: Training model
-        env:
-          WANDB_API_KEY: ${{ secrets.WANDB_NMD }}
+      - name: Training model without Weight & Biases
         run: |
           # Training model
           python train.py
           
         shell: bash
+        
+      # - name: Training model with Weight & Biases
+      #   env:
+      #     WANDB_API_KEY: ${{ secrets.WANDB_NMD }}
+      #   run: |
+      #     # Install wandb
+      #     pip install wandb
+
+      #     # Training model
+      #     python train.py
+          
+      #   shell: bash
