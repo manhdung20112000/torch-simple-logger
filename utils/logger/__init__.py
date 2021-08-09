@@ -138,7 +138,9 @@ class SummaryWriter():
             if local_path.endswith('.zip'):  # unzip
                 save_path = root / Path(filename.name[:-len('.zip')])
                 print(f'Unziping {filename} to {save_path}')
-                os.system(f'unzip -q {filename} -d {root} && rm {filename}')
+                import zipfile
+                with zipfile.ZipFile(filename, 'r') as zip_ref:
+                    zip_ref.extractall(save_path)
                 local_path = str(save_path)
             return local_path
 
