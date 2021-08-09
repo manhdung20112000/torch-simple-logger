@@ -129,14 +129,17 @@ class SummaryWriter():
         @return:Z
         """
         if local_path.startswith('http'):
-            default_root = './datasets'
-            Path(default_root).mkdir(parents=True, exist_ok=True)  # create root
-            f = default_root / Path(local_path).name
-            print(f'Downloading {local_path} to {f}')
-            torch.hub.download_url_to_file(local_path, f)
-            if local_path.endswith('.zip'): # unzip to f
-                print(f'Unziping {f} and deleting .zip files')
-                r = os.system(f'unzip -q {f} -d {default_root} && rm {f}')  # unzip
+            root = Path('./datasets')
+            root.mkdir(parents=True, exist_ok=True)  # create root
+            filename = root / Path(local_path).name
+            print(f'Downloading {local_path} to {filename}')
+            torch.hub.download_url_to_file(local_path, filename)
+            if local_path.endswith('.zip'): # unzip
+                save_path = root / Path(filename.name[:-len('.zip')])
+                print(f'Unziping {filename} to {save_path}')
+                os.system(f'unzip -q {filename} -d {root} && rm {filename}')  # unzip
+                filename = save_path
+            return str(filename)
 
         if Path(local_path).exists():
             if self.use_wandb:
