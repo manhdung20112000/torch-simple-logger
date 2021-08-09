@@ -56,14 +56,9 @@ def test(model, epoch, testloader):
     logger.add_scalars(main_tag='eval', tag_scalar_dict=scalars, global_step=epoch)
     
     # save model
-    save_path = 'exp/'
-    if not os.path.exists(save_path):
-        os.mkdir(save_path)
-    model_path = os.path.join(save_path, 'weight.pt')
-    torch.save(model.state_dict(), model_path)
-    logger.log_model_artifact(path=model_path, 
-                                epoch=epoch, 
-                                scores=scalars,)
+    model_path = 'exp/weight.pt'
+
+    logger.save(model.state_dict(), model_path)
 
     return test_loss, test_accuracy
 

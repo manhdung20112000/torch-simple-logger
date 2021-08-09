@@ -1,5 +1,6 @@
 # Init logging object
 import argparse
+import os
 import warnings
 
 import torch
@@ -11,7 +12,6 @@ from utils.logger.wandb.wandb_logger import WandbLogger
 
 try:
     import wandb
-
     WANDB_ARTIFACT_PREFIX = 'wandb-artifact://'
     assert hasattr(wandb, '__version__')  # verify package import not local dir
 except (ImportError, AssertionError):
@@ -42,15 +42,15 @@ class SummaryWriter():
                                 'momentum': 0.7,}
 
         """
-        self.log_dir = log_dir
+        self.log_dir    = log_dir
         # self.config     = config # move config to opt (namespace)
-        self.opt = opt if opt is not None else None
-        self.use_wandb = wandb is not None
+        self.opt        = opt if opt is not None else None
+        self.use_wandb  = wandb is not None
         self.log_prefix = 'Weights & Biases: ' if self.use_wandb else "Tensorboard: "
         # Message
         if not self.use_wandb:
             self.log_message("run 'pip install wandb' to automatically track and visualize runs.")
-
+    
         if self.use_wandb:
             self.__init_wandb()
         else:
@@ -179,7 +179,7 @@ class SummaryWriter():
                            scores: float or dict = None,
                            opt: argparse.Namespace = None, ):
         """
-        Log the model as W&B artifact.
+        Logging the model as W&B artifact.
 
         Args:
             path (str): Path to weight local file
@@ -192,7 +192,53 @@ class SummaryWriter():
         else:
             self.log_message("Does not support upload dataset artifact to Weight & Biases.")
 
-    def download_model_artifact(self, artifact_name: str = None, alias: str = None):
+
+    def save(self, obj,
+                    path:str,
+                    epoch:int=None,
+                    scores:float or dict=None):
+        """
+        Saving model using torch.save and log into Weight & Biases
+
+        Args:
+            obj (nn.parameter or dict): Object to be saved
+            path (str): Path to save the object
+            epoch (str): Current epoch
+            scores (float or dict): Current achived scores
+
+        Example:
+            logger = SummaryWriter()
+            for epoch in epochs:
+                ...
+
+                obj = {'model': model.state_dict()
+                        'optimizer': optimizer.state_dict()}
+                logger.save(obj, 'path/to/save/dir', epoch, scores)
+
+        """
+        parent_path = os.path.normpath(os.path.join(path, os.path.pardir))
+        if not os.path.exists(parent_path):
+            os.makedirs(parent_path)
+
+        if epoch is not None:
+            obj['epoch'] = epoch
+        if scores is not None:
+            if isinstance(scores, float):
+                obj['score'] = scores
+            elif isinstance(scores, dict):
+                for key, value in scores.items():
+                    obj[key] = value
+        torch.save(obj, path)
+
+        if self.use_wandb:
+            self.log_model_artifact(path=path,
+                                    epoch=epoch,
+                                    scores=scores)
+        else:
+            self.log_message(f"Saved model in {path}. Using `wandb` to upload model into Weight & Biases.")
+
+
+    def download_model_artifact(self, artifact_name:str=None, alias:str=None):
         """
         Download model artifact from Weight & Biases and extract model run's metadata
 
