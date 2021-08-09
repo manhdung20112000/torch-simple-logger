@@ -45,7 +45,7 @@ class SummaryWriter():
         self.log_dir    = log_dir
         # self.config     = config # move config to opt (namespace)
         self.opt        = opt if opt is not None else None
-        self.use_wandb  = wandb is not None
+        self.use_wandb  = (wandb is not None) and os.environ.get("WANDB_API_KEY", None) is not None
         self.log_prefix = 'Weights & Biases: ' if self.use_wandb else "Tensorboard: "
         # Message
         if not self.use_wandb:
@@ -129,6 +129,7 @@ class SummaryWriter():
         """
         if self.use_wandb:
             data_path, _ = self.download_dataset_artifact(dataset_name, version)
+            return data_path
         else:
             return local_path
 
