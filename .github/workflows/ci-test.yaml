@@ -43,9 +43,6 @@ jobs:
         env:
           WANDB_API_KEY: ${{ secrets.WANDB_NMD }}
         run: |
-          # Wandb login
-          wandb login 
-          
           # Training model
           python train.py
           
