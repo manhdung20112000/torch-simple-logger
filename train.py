@@ -12,7 +12,6 @@ from models.model import Net
 from utils.logger import SummaryWriter
 from utils.utils import get_dataloader, get_dataset, get_transform
 
-# from torch.utils.tensorboard import SummaryWriter
 
 def train(model, epoch, trainloader, optimizer, loss_function):
     model.train()
